@@ -1,138 +1,9 @@
-# Flask-SQLAlchemy Validations
+# Technical Lesson: Flask-SQLAlchemy Validations
 
-## Learning Goals
+In our earlier example, we looked at validating an email address.
+In this lesson we'll use that same example and extend our validations a bit.
 
-- Define constraints and validations in data processing.
-- Ensure that only acceptable input is sent to the database using validations.
-
-***
-
-## Key Vocab
-
-- **Constraint**: a rule enforced on the data columns of a table. Ensures that
-  only appropriate data is saved to the database.
-- **Validation**: an automatic check to ensure that data entered
-  is sensible and feasible.
-- **Forms**: A web form (or HTML form) is a place where users enter data or
-  personal information that's then sent to a server for processing.
-
-***
-
-## Context: Databases and Data Validity
-
-What is a "validation"?
-
-In the context of Python, **validations** are special method calls that go at
-the top of model class definitions and prevent them from being saved to the
-database if their data doesn't look right.
-
-In general, **validations** consist of code that performs the job of protecting
-the database from invalid data.
-
-SQLAlchemy can validate our models for us before they even touch the database.
-This means it's harder to end up with bad data, which can cause problems later
-even if our code is technically bug-free.
-
-We can use `SQLAlchemy` helper methods like `validates()` to set things
-up.
-
-### SQLAlchemy Validations vs Database Constraints
-
-Many relational databases, such as SQLite and PostgreSQL, have data validation
-features that check things like length and data type. While SQLAlchemy
-validations are added in the model files, these validations are typically added
-via migrations.
-
-Database constraints and model validations are also functionally different.
-Database constraints will ALWAYS be checked when adding or updating data in the
-database, while SQLAlchemy validations will only be checked when adding or
-updating data through the SQLAlchemy ORM (e.g. if we use SQL code in the command line to
-modify the database, SQLAlchemy validations are not run).
-
-Some developers use both database constraints and SQLAlchemy Validations,
-while others rely on SQLAlchemy Validations alone. Ultimately, it depends on
-how the developer plans to add and update data in the database. In this lesson,
-we'll be focusing on SQLAlchemy Validations.
-
-### What is "Invalid Data"?
-
-Suppose you get a new phone and you ask all of your friends for their phone
-number again. One of them tells you, "555-868-902". If you're paying attention,
-you'll probably wrinkle your nose and think, "Wait a minute. That doesn't sound
-like a real phone number."
-
-"555-868-902" is an example of **invalid data**... for a phone number. It's
-probably a valid account number for some internet service provider in Alaska,
-but there's no way to figure out what your friend's phone number is from those
-nine numbers. It's a showstopper, and even worse, it kind of looks like valid
-data if you're not looking closely.
-
-### Validations Protect the Database
-
-Invalid data is the bogeyman of web applications: it hides in your database
-until the worst possible moment, then jumps out and ruins everything by causing
-confusing errors.
-
-Imagine the phone number above being saved to the database in an application
-that makes automatic calls using the Twilio API. When your system tries to call
-this number, there will be an error because no such phone number exists, which
-means you need to have an entire branch of code dedicated to handling _just_
-that edge case.
-
-It would be much easier if you never have bad data in the first place, so you
-can focus on handling edge cases that are truly unpredictable.
-
-That's where validations come in.
-
-***
-
-## Basic Usage
-
-For more examples of basic validation usage, see the SQLAlchemy Guide for
-[SQLAlchemy Validations][SQLAlchemy Validations].
-
-```py
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import validates
-db = SQLAlchemy()
-
-class EmailAddress(db.Model):
-    __tablename__ = 'emailaddress'
-
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String)
-    backup_email = db.Column(db.String)
-
-    @validates('email')
-    def validate_email(self, key, address):
-        if '@' not in address:
-            raise ValueError("Failed simple email validation")
-        return address
-
-
-```
-
-If we create an EmailAddress object we should expect a ValueError exception.
-
-```py
-email = EmailAddress(email='banana')
-session.add(email)
-# => ValueError: Failed simple email validation
-
-```
-
-In this example, we wrote a `validate_email()` function, preventing the object
-from being saved if its `email` attribute does not include `@`. We can return a
-custom message by raising a ValueError with the message.
-
-`validates` is our Swiss Army knife for validations. First you need to use a
-decorator which takes a string of the columns you want to validate.
-the first argument is the **key** we want to validate (the key's value will be
-the 'email'), and the second argument is the value of what we want to validate.
-We can validate multiple columns if we pass multiple column names into the
-validates decorator.
-
-Here is an example of validating multiple columns with one validate function.
+Here's where our code left off in the example:
 
 ```py
 from flask_sqlalchemy import SQLAlchemy
@@ -149,51 +20,245 @@ class EmailAddress(db.Model):
     @validates('email', 'backup_email')
     def validate_email(self, key, address):
         if '@' not in address:
-            raise ValueError("Failed simple email validation")
+            raise ValueError("Email must have an '@' in the address.")
         return address
 ```
 
-In this example the `validate_email` function will validate both `email` and the
-`backup_email` column. We can figure out which column we are validating by
-checking the `key` attribute. The key attribute will be `email` or
-`backup_email` because those are the columns we passed into the decorator.
+## Scenario
 
-***
+Our current validation is not enough for what the system needs to check for emails.
 
-## Conclusion
+We need to extend our validations to check for the following:
+* Email is present and a string.
+* Emails should not be duplicates or already exist in our system.
+* Our database requires that emails not be longer than 254 characters.
+* Our company has decided to not accept hotmail or yahoo emails
+  * > Note: this constraint is just for the purpose of example. Typically, we would not want to limit our users' email providers.
 
-In this lesson, we learned the importance of validating data to ensure that no
-bad data ends up in our database. We also discussed the difference between model
-validations and database constraints. Finally, we saw some common methods for
-implementing validations on our models using SQLAlchemy.
+## Tools & Resources
 
-***
+- [GitHub Repo](https://github.com/learn-co-curriculum/flask-sqlalchemy-validations-technical-lesson)
+- [Changing Attribute Behavior - SQLAlchemy](https://docs.sqlalchemy.org/en/14/orm/mapped_attributes.html)
 
-## Solution Code
+## Set Up
 
-```py
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.orm import validates
-db = SQLAlchemy()
+Run `pipenv install` to create your virtual environment and `pipenv shell` to
+enter the virtual environment.
 
-class EmailAddress(db.Model):
-    __tablename__ = 'emailaddress'
+```console
+pipenv install && pipenv shell
+```
 
-    id = db.Column(db.Integer, primary_key=True)
-    email = db.Column(db.String)
-    backup_email = db.Column(db.String)
+This project has starter code for a `EmailAddress` model and a starter seed file. To
+get create the database run:
 
+```console
+$ cd server
+$ flask db init
+$ flask db migrate -m 'init migration'
+$ flask db upgrade head
+$ python seed.py
+```
+
+Feel free to add to the seed file as you go to test validations or 
+use `flask shell`. We'll also test all validations in the shell at the end 
+of the lesson.
+
+## Instructions
+### Task 1: Define the Problem
+
+Our application currently permits invalid, inconsistent, or duplicate email data. The existing 
+validation only checks for the presence of an "@" symbol, which is insufficient in a real-world system.
+
+This opens us up to several risks:
+* Users can submit blank or malformed email addresses.
+* Duplicate emails can be stored, compromising identity or login mechanisms.
+* Emails might exceed the maximum length allowed by email standards or database column constraints.
+* Certain domains (like hotmail.com or yahoo.com) are disallowed due to company policy but are not being 
+filtered.
+
+Without stronger validations, the database becomes unreliable, and any downstream processes (like sending 
+email, filtering users, etc.) may break.
+
+### Task 2: Determine the Design
+
+We'll improve validation by embedding checks directly into the SQLAlchemy model using the @validates() decorator. Here's how:
+
+1. Use a centralized validation method:
+  * Validate both email and backup_email with a single method, using the key argument to distinguish between them if needed.
+
+2. Enforce multiple validation rules:
+  * Presence: Ensure the email is not blank or null.
+  * Type check: Confirm the email is a string.
+  * Format: Ensure it includes an "@" character.
+  * Length: Cap length at 254 characters (the internet standard max).
+  * Uniqueness: Query the database for duplicates (note: real production apps should use unique constraints at the DB level too).
+  * Restricted domains: Check domain part of the email and block disallowed providers.
+
+3. Raise clear, specific ValueErrors for each invalid case so that errors are easy to interpret.
+
+4. Use SQLAlchemy's session context (db.session.query()) to check existing records for uniqueness.
+
+This layered validation process allows the model to guard against invalid data before anything is committed to the database.
+
+### Task 3: Develop, Test, and Refine the Code
+
+#### Step 1: Add Validation for Presence
+
+Let's start by creating our validation to test presence. All we need to check here
+is that email is a truthy value, instead of an empty string or `None`.
+
+```python
     @validates('email', 'backup_email')
     def validate_email(self, key, address):
+        # check for presence
+        if not address:
+            raise ValueError("Email must be present.")
+        
         if '@' not in address:
-            raise ValueError("Failed simple email validation")
+            raise ValueError("Email must have an '@' in the address.")
+
         return address
 ```
 
-***
+#### Step 2: Add Validation for Type
 
-## Resources
+Next, let's build our validation for type. HEre we are testing that the 
+email is in fact a string. We'll use the `isinstance()` Python function.
 
-- [Changing Attribute Behavior - SQLAlchemy][SQLAlchemy Validations]
+```python
+    @validates('email', 'backup_email')
+    def validate_email(self, key, address):
+        # check for presence
+        if not address:
+            raise ValueError("Email must be present.")
 
-[SQLAlchemy Validations]: https://docs.sqlalchemy.org/en/14/orm/mapped_attributes.html
+        # Check for type
+        if not isinstance(address, str):
+            raise ValueError("Email must be a string.")
+        
+        if '@' not in address:
+            raise ValueError("Email must have an '@' in the address")
+
+        return address
+```
+
+#### Step 3: Add Validation for Uniqueness
+
+To check for duplicates, We need query the database and verify the email 
+doesn't already exist. We can do so by filtering our SQL query by the email
+we are validating and then verifying that the email returned by the database is None.
+
+```python
+# check for duplicate
+duplicate_email = db.session.query(EmailAddress.id).filter_by(email = address).first()
+if duplicate_email is not None:
+    raise ValueError("Email must be unique.")
+```
+
+#### Step 4: Add Validation for Length
+
+Now, we need to test the length of the email. For this, we can use Python's `len()`.
+
+```python
+# check email not too long
+if len(address) > 254:
+    raise ValueError("Email is too long.")
+```
+
+#### Step 5: Add Validation for Domain
+
+Finally, we need to test the domain of the email. Python's `in` will come in handy here.
+
+```python
+# reject hotmail and yahoo emails
+if address.split("@")[1] in ["hotmail.com", "yahoo.com"]:
+    raise ValueError("Email cannot be a hotmail or yahoo address.")
+```
+
+#### Step 6: Verify your Code
+
+To test our code, let's pop into `flask shell`.
+
+```bash
+flask shell
+```
+
+Test presence:
+```bash
+EmailAddress(email='', backup_email = 'test@gmail.com')
+# => ... ValueError: Email must be present.
+```
+
+Test type:
+```bash
+EmailAddress(email=982, backup_email = 'test@gmail.com')
+# => ... ValueError: Email must be a string.
+```
+
+Test uniqueness (ensure seed.py has been run, back_up email here then should already have been used):
+```bash
+EmailAddress(email='test@gmail.com', backup_email = 'email@email.com')
+# => ... ValueError: Email must be unique.
+```
+
+Test for long emails:
+```bash
+EmailAddress(email='hgdbdkjwkqwjaekjnafwjknfwkjnwjkfjknjkqjwnfnrkjqnkjfbnqwjkrfbnjwqbnjfnqwjklnfjkwqnfkjnqwkjfnkqwenfkwqnkfjnqewkjnekw  fqnfkjqnwjknfkj wenfjknqwkjfnjkqwnfjknqewkjfnkj wnekefnkjew nekjnqkjenfkjnqwkjfnqwhfjiuqhwfkjvbvkjnqwkcndkawbncjkbdjkwbcjkawckjndawjkcnfkjawenckwnfkqnfkjn@gmail.com', backup_email = 'test@gmail.com')
+# => ... ValueError: Email is too long.
+```
+
+Test for domain exclusion:
+```bash
+EmailAddress(email='test@hotmail.com', backup_email = 'test@gmail.com')
+# => ... ValueError: Email cannot be a hotmail or yahoo address.
+
+EmailAddress(email='test@yahoo.com', backup_email = 'test@gmail.com')
+# => ... ValueError: Email cannot be a hotmail or yahoo address.
+```
+
+> Note: It's best practice to write a test suite for these edge cases and also 
+to verify that valid emails pass the validations.
+
+#### Step 7: Commit and Push Git History
+
+* Commit and push your code:
+
+```bash
+git add .
+git commit -m "final solution"
+git push
+```
+
+* If you created a separate feature branch, remember to open a PR on main and merge.
+
+### Task 4: Document and Maintain
+
+Best Practice documentation steps:
+* Add comments to the code to explain purpose and logic, clarifying intent and functionality of your code to other developers.
+* Update README text to reflect the functionality of the application following https://makeareadme.com. 
+  * Add screenshot of completed work included in Markdown in README.
+* Delete any stale branches on GitHub
+* Remove unnecessary/commented out code
+* If needed, update git ignore to remove sensitive data
+
+## Considerations
+### Order of validations matters
+Check for presence and type before using string methods (like .split()), or you’ll 
+raise the wrong kind of error.
+
+### Avoid double queries
+Uniqueness checks should apply only where necessary to minimize DB load.
+
+### Raise informative errors
+This is important in test-driven labs, where learners and graders rely on specific 
+messaging, but also for real applications.
+
+### Backup email handling
+If backup_email is allowed to be null or duplicate, clarify this in the logic (e.g., 
+skip uniqueness check for backup fields).
+
+### Database vs Model-Level Constraints
+These are not the same. Model validations ensure clean data before a commit; database 
+constraints are a final safeguard. It's important to validate at as many levels as 
+possible: database, model, schema, and even frontend UI validations in HTML forms.

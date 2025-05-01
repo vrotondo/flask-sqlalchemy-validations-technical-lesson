@@ -12,5 +12,6 @@ class EmailAddress(db.Model):
     @validates('email', 'backup_email')
     def validate_email(self, key, address):
         if '@' not in address:
-            raise ValueError("Failed simple email validation")
+            raise ValueError("Email must have an '@' in the address")
+
         return address
